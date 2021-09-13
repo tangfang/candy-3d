@@ -2,38 +2,56 @@
 import * as THREE from 'three';
 import TWEEN from '@tweenjs/tween.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
 
 export default class Candy3D {
-  constructor() {
+  constructor(_dom, _options) {
+    this.dom = typeof _dom === 'string' ? document.getElementById(_dom) : _dom;
+    this.options = null;
     this.scene = null;  //场景
     this.camera = null; //相机
     this.renderer = null; //渲染器
+    this.stats = null;
+    this.data = null;
+    this._initOptions(_options);
   }
-  start() {
+  init(data) {
+    this.data = data;
+    if (this.options.showStats) {
+      this.showStats();
+    }
+
     this._initScene();//创建场景 
-
     this._initCamera(); //初始化摄像机 
-
     this._initLight();//灯光布置
     this._initRenderer(); //初始化渲染器 
-
-    this.createFloor();//创建地板
-    this.createCubeWall();  //创建墙体
-    this._createRack2();  //创建机柜
-    this._createServer(); //创建服务器
-
     this.initMouseCtrl();//创建鼠标控制器 
+
+    this.createFloor(data.floor);//创建地板
+    // candy.createWall();  //创建墙体
+    this.createRack(data.rack);  //创建机柜
+    this.createServer(data.rack); //创建服务器
 
     this.animation();//循环渲染界面
   }
+  /* 初始化配置选项
+   antialias 抗锯齿
+   clearColor 背景色
+   */
+  _initOptions(options) {
+    this.options = options ? options : {};
+    this.options.antialias = this.options && this.options.antialias ? this.options.antialias : true;
+    this.options.showStats = this.options && this.options.showStats ? this.options.showStats : false;
+  }
+
   /*初始化渲染器
     antialias: 抗锯齿
   */
   _initRenderer() {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: this.options.antialias });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setClearColor('#39609B');//背景色
-    document.body.appendChild(this.renderer.domElement);
+    this.renderer.setClearColor(this.options.clearColor);//背景色
+    this.dom.appendChild(this.renderer.domElement);
 
     //事件 
     this.renderer.domElement.addEventListener('dblclick', (ev) => {
@@ -55,6 +73,9 @@ export default class Candy3D {
   //创建场景
   _initScene() {
     this.scene = new THREE.Scene();
+    if (this.options.debug) {
+      this._debug();
+    }
   }
   /* 创建灯光
    AmbientLight: 环境光，基础光源，它的颜色会被加载到整个场景和所有对象的当前颜色上。 
@@ -76,8 +97,12 @@ export default class Candy3D {
     if (TWEEN != null && typeof (TWEEN) != 'undefined') {
       TWEEN.update();
     }
+
     requestAnimationFrame(() => { this.animation() });
     this.renderer.render(this.scene, this.camera);
+    if (this.stats) {
+      this.stats.update();
+    }
   }
   //创建鼠标控制器
   initMouseCtrl() {
@@ -93,28 +118,26 @@ export default class Candy3D {
   }
 
   //创建地板
-  createFloor() {
+  createFloor(data) {
     // return this.createCube(obj);
     let loader = new THREE.TextureLoader();
-    loader.load('../img/floor.png', (texture) => {
+    loader.load('../img/grasslight-big.jpg', (texture) => {
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
       texture.repeat.set(10, 10);
-      let floorGeometry = new THREE.BoxGeometry(400, 2, 300);
+      let floorGeometry = new THREE.BoxGeometry(data.width, data.height, data.depth);
+      floorGeometry.name = 'floor'
       let floorMaterial = new THREE.MeshBasicMaterial({
         map: texture,
         side: THREE.DoubleSide
       });
       let floor = new THREE.Mesh(floorGeometry, floorMaterial);
-      floor.position.set(0,-1,0);
-      // floor.position.y = -0.5;
-      // floor.rotation.x = Math.PI / 2;
-      // console.log(Math.PI/2)
+      floor.name = 'floor';
       this.scene.add(floor);
     });
   }
 
   //创建墙体
-  createCubeWall() {
+  createWall() {
     const _walls = [
       { width: 1, height: 200, depth: 300, color: 0XECF1F3, x: -200, y: 100, z: 0, angle: 0 },//left
       { width: 1, height: 200, depth: 300, color: 0XECF1F3, x: 200, y: 100, z: 0, angle: 0 },//right
@@ -138,7 +161,7 @@ export default class Candy3D {
   }
 
   //创建机柜
-  _createRack() {
+  _createRack1() {
     const width = 30, height = 88, depth = 40, x = 50, y = 50, z = 0;
     //创建11个机柜
     for (let i = 0; i <= 0; i++) {
@@ -201,120 +224,85 @@ export default class Candy3D {
   }
 
   //创建机柜
-  _createRack2() {
-    const dk = 30, dc = 40, number = '1A001', x = 50, y = 0, z = 0;
-    //设置机箱的外壳
+  createRack(data) {
+    const number = '1A001';
 
-    var texture1 = new THREE.TextureLoader().load('../img/rack_left.png');//机箱外表贴图
-    var texture3 = new THREE.TextureLoader().load('../img/rack_left.png');//cabz
-    var texture2 = new THREE.TextureLoader().load('../img/rack_left.png');//caby
+    //设置基础材质和贴图
+    const texture_left_right = new THREE.MeshBasicMaterial({
+      color: 0x8E8E8E,
+      map: new THREE.TextureLoader().load('../img/rack_left.png')
+    });
+    const texture_up_down = new THREE.MeshBasicMaterial({
+      color: 0x8E8E8E,
+      map: new THREE.TextureLoader().load('../img/rack_up.png')
+    });
+    const texture_door = new THREE.MeshBasicMaterial({
+      color: 0x8E8E8E,
+      map: new THREE.TextureLoader().load('../img/rack_back.png')
+    });
 
-
-    var cabGroup = new THREE.Group();
     //cabGroup的平面中心是机柜主体的平面中心
-    cabGroup.position.set(x, y, z);
+    let cabGroup = new THREE.Group();
+    cabGroup.position.set(data.position.x, data.position.y, data.position.z);
     cabGroup.name = 'cabGroup';
 
+    // 机柜底
+    const down_geo = new THREE.BoxGeometry(data.geometryParams.width, data.geometryParams.thick, data.geometryParams.depth);
+    let rack_down = new THREE.Mesh(down_geo, texture_up_down);
+    rack_down.position.x = data.position.x;
+    rack_down.position.y = data.position.y + data.geometryParams.thick / 2;
+    rack_down.position.z = data.position.z;
 
-    var cabMatLambert = new THREE.MeshLambertMaterial({//设置朗伯材质和贴图
-      color: 0x8E8E8E,
-      map: texture1
-    });
-    var cabMatBasic = new THREE.MeshBasicMaterial({//设置基础材质和贴图
-      color: 0x8E8E8E,
-      map: texture1
-    });
+    // 机柜上板
+    const up_geo = new THREE.BoxGeometry(data.geometryParams.width, data.geometryParams.thick, data.geometryParams.depth);
+    let rack_up = new THREE.Mesh(up_geo, texture_up_down);
+    rack_up.position.x = data.position.x;
+    rack_up.position.y = data.geometryParams.height - data.geometryParams.thick / 2;
+    rack_up.position.z = data.position.z;
 
-    var cabdGeo = new THREE.BoxGeometry(dk, 2, dc);//箱主体底宽30，高2，长40
-    var cabd = new THREE.Mesh(cabdGeo, cabMatBasic);
-    cabd.position.set(0, 1, 0);
+    // 机柜左板
+    const left_geo = new THREE.BoxGeometry(data.geometryParams.thick, data.geometryParams.height, data.geometryParams.depth);
+    let rack_left = new THREE.Mesh(left_geo, texture_left_right);
+    rack_left.position.x = -data.geometryParams.width / 2 + data.geometryParams.thick / 2;
+    rack_left.position.y = data.geometryParams.height / 2;
+    rack_left.position.z = data.position.z;
 
-    var cabzGeo = new THREE.BoxGeometry(2, 88, dc);//箱左侧，厚2，高88，长40
-    var cabzMaterials = [];
-    cabzMaterials.push(//push顺序：X轴正、反，Y轴正、反，Z轴正、反
-      cabMatLambert,
-      cabMatLambert,
-      cabMatLambert,
-      cabMatLambert,
-      new THREE.MeshBasicMaterial({
-        color: 0xBEBEBE,
-        map: texture2
-      }),
-      cabMatBasic
-    );
-    var cabzMat = new THREE.MeshFaceMaterial(cabzMaterials);
-    var cabz = new THREE.Mesh(cabzGeo, cabzMat);
-    cabz.position.set(dk / 2 - 1, 46, 0);
+    // 机柜右板
+    const right_geo = new THREE.BoxGeometry(data.geometryParams.thick, data.geometryParams.height, data.geometryParams.depth);
+    let rack_right = new THREE.Mesh(right_geo, texture_left_right);
+    rack_right.position.x = data.geometryParams.width / 2 - data.geometryParams.thick / 2;
+    rack_right.position.y = data.geometryParams.height / 2;
+    rack_right.position.z = data.position.z;
 
-    var cabyGeo = new THREE.BoxGeometry(2, 88, dc);//箱左侧，厚2，高88，长40
-    var cabyMaterials = [];
-    cabyMaterials.push(
-      cabMatLambert,
-      cabMatBasic,
-      cabMatLambert,
-      cabMatLambert,
-      new THREE.MeshBasicMaterial({
-        color: 0xBEBEBE,
-        map: texture3
-      }),
-      cabMatBasic
-    );
-    var cabyMat = new THREE.MeshFaceMaterial(cabyMaterials);
-    var caby = new THREE.Mesh(cabyGeo, cabyMat);
-    caby.position.set(-dk / 2 + 1, 46, 0);
+    // 机柜后板
+    const back_geo = new THREE.BoxGeometry(data.geometryParams.width, data.geometryParams.height, data.geometryParams.thick);
+    let rack_back = new THREE.Mesh(back_geo, texture_left_right);
+    rack_back.position.x = data.position.x;
+    rack_back.position.y = data.position.y + data.geometryParams.height / 2;
+    rack_back.position.z = data.position.z - data.geometryParams.depth / 2 + data.geometryParams.thick / 2;
 
-    var cabhGeo = new THREE.BoxGeometry(dk - 4, 88, 2);//后板宽26，高88，厚2
-    var cabh = new THREE.Mesh(cabhGeo, cabMatBasic);
-    cabh.position.set(0, 46, 0 - dc / 2 + 1);
-
-    var cabsGeo = new THREE.BoxGeometry(dk, 2, dc);
-    var cabsMaterials = [];
-    cabsMaterials.push(
-      cabMatBasic,
-      cabMatBasic,
-      new THREE.MeshLambertMaterial({
-        color: 0x8E8E8E,
-        map: new THREE.TextureLoader().load('../img/rack_up.png')//canvas贴图
-      }),
-      cabMatLambert,
-      cabMatLambert,
-      cabMatLambert
-    );
-    var cabsMat = new THREE.MeshFaceMaterial(cabsMaterials);
-    var cabs = new THREE.Mesh(cabsGeo, cabsMat);
-    cabs.position.set(0, 91, 0);
-    cabs.name = 'cabs';
-
-    cabGroup.add(cabd, cabz, caby, cabh, cabs);//cabGroup不包括机箱门
+    cabGroup.add(rack_down, rack_up, rack_left, rack_right, rack_back);//cabGroup不包括机箱门
 
     //设置机箱门
-    var menGroup = new THREE.Group();
-    menGroup.position.set(x + 15, y, z + 20);
+    let menGroup = new THREE.Group();
+    menGroup.position.x = data.position.x + data.geometryParams.width / 2;
+    menGroup.position.y = data.position.y;
+    menGroup.position.z = data.position.z + data.geometryParams.depth / 2;
     menGroup.name = number;//机箱门的名字为输入的编号
 
-    var menGeo = new THREE.BoxGeometry(dk, 92, 1);//机箱们宽，高，厚
-    var mMaterials = [];
-    mMaterials.push(
-      new THREE.MeshLambertMaterial({ color: 0x999999 }),
-      new THREE.MeshLambertMaterial({ color: 0x999999 }),
-      new THREE.MeshLambertMaterial({ color: 0x999999 }),
-      new THREE.MeshLambertMaterial({ color: 0x999999 }),
-      new THREE.MeshLambertMaterial({
-        map: new THREE.TextureLoader().load('../img/rack_front.png'),
-        overdraw: true
-      }),
-      new THREE.MeshBasicMaterial({
-        map: new THREE.TextureLoader().load('../img/rack_back.png'),
-        overdraw: true
-      })
-    );
-
-    var menMat = new THREE.MeshFaceMaterial(mMaterials);
-    var men = new THREE.Mesh(menGeo, menMat);
+    const menGeo = new THREE.BoxGeometry(data.geometryParams.width, data.geometryParams.height, data.geometryParams.thick);//机箱们宽，高，厚
+    let men = new THREE.Mesh(menGeo, new THREE.MeshLambertMaterial({
+      map: new THREE.TextureLoader().load('../img/rack_front.png')
+    }));
     men.name = 'men';
-    men.position.set(-dk / 2, 46, .5);
-    menGroup.add(men);
+    // men.position.x = -data.geometryParams.width / 2;
+    // men.position.y = data.position.y + data.geometryParams.height / 2;
+    // men.position.z = data.position.z;
+    men.position.x = data.position.x - data.geometryParams.width / 2;
+    men.position.y = data.position.y + data.geometryParams.height / 2;
+    men.position.z = data.position.z + data.geometryParams.thick / 2;
 
+    menGroup.add(men);
     this.scene.add(cabGroup, menGroup);
   }
 
@@ -337,6 +325,7 @@ export default class Candy3D {
        第一个参数不传scene.children也可以，传一个group.children或一个形状数组都可以*/
     const intersects = raycaster.intersectObjects(this.scene.children, true);
     const currObj = intersects[0].object; //currObj为点击到的第一个对象
+    console.log(currObj);
     if (currObj.name === 'men') {
       const p1 = new THREE.Vector3(currObj.parent.position);
       const number = currObj.parent.name;
@@ -358,8 +347,7 @@ export default class Candy3D {
       }
     }
     if (currObj.name === 'server2') {
-      var p1 = new THREE.Vector3(currObj.parent.position);//
-      console.log(currObj.parent.position)
+      const p1 = new THREE.Vector3(currObj.parent.position);//
       if (currObj.parent.position.z === 20) {
         new TWEEN.Tween(currObj.parent.position).to({
           z: currObj.parent.position.z - 20
@@ -373,46 +361,56 @@ export default class Candy3D {
       }
 
       this.controls.update();
-
     }
   }
 
   // 创建服务器
-  _createServer() {
-    const h = 50, x = 50, y = 0, z = 0;
-
-    var serv2Group = new THREE.Group();
-    serv2Group.position.set(x, y, z);
+  createServer(rack) {
+    let serv2Group = new THREE.Group();
+    serv2Group.position.set(rack.position.x, rack.position.y, rack.position.z);
 
     //两层的服务器
-    var servTexture = new THREE.TextureLoader().load('img/rack_inside.jpg');
-    var serv2Geo = new THREE.BoxGeometry(24, 3.5, 36);//这里服务器的尺寸要跟机箱尺寸对应好
-    var servMat = new THREE.MeshBasicMaterial({
+    const geometryParams = {
+      width: rack.geometryParams.width - rack.geometryParams.thick*2 - 2,
+      height: 50,
+      depth: rack.geometryParams.depth - rack.geometryParams.thick * 2,
+      thick: 3.5
+    };
+    //这里服务器的尺寸要跟机箱尺寸对应好
+    const servTexture = new THREE.TextureLoader().load('img/rack_inside.jpg');
+    const serv2Geo = new THREE.BoxGeometry(geometryParams.width, geometryParams.thick, geometryParams.depth);
+    const servMat = new THREE.MeshBasicMaterial({
       color: 0x9AC0CD,
       map: servTexture
     });
-    var server2 = new THREE.Mesh(serv2Geo, servMat);//服务器主体
-    server2.position.set(0, h, 2);
+    let server2 = new THREE.Mesh(serv2Geo, servMat);//服务器主体
+    server2.position.set(rack.position.x, geometryParams.height, rack.geometryParams.thick);
 
-    var server2mGeo = new THREE.BoxGeometry(26.4, 4, 0.2);//服务器面板尺寸
-    var smb2Materials = [];
-    smb2Materials.push(
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-      new THREE.MeshBasicMaterial({
-        map: new THREE.TextureLoader().load(
-          'img/server2.jpg'),
-        overdraw: true
-      }),
-      new THREE.MeshBasicMaterial({ color: 0xffffff })
-    );
-    var server2mMat = new THREE.MeshFaceMaterial(smb2Materials);//服务器面板材质
-    var server2face = new THREE.Mesh(server2mGeo, server2mMat);
+    //服务器面板尺寸
+    const server2mGeo = new THREE.BoxGeometry(geometryParams.width+2.5, geometryParams.thick+0.5, 0.2);
+    let server2face = new THREE.Mesh(server2mGeo, new THREE.MeshBasicMaterial({
+      map: new THREE.TextureLoader().load('img/server2.jpg')
+    }));
     server2face.name = 'server2';
-    server2face.position.set(0, h, 36 / 2 + 0.2 / 2 + 2);
+    server2face.position.x = rack.position.x;
+    server2face.position.y = geometryParams.height;
+    // server2face.position.z = 36 / 2 + 0.2 / 2 + 2;
+    server2face.position.z = rack.geometryParams.depth/2 +0.2;
     serv2Group.add(server2, server2face);
     this.scene.add(serv2Group);
+  }
+
+  /**
+   * 显示/隐藏性能监视器Stats
+   */
+  showStats() {
+    this.stats = new Stats();
+    this.stats.domElement.style.position = 'absolute';
+    this.stats.domElement.style.left = '0px';
+    this.stats.domElement.style.top = '0px';
+    this.dom.appendChild(this.stats.domElement);
+  }
+  _debug() {
+    this.scene.add(new THREE.AxesHelper(89));
   }
 }
