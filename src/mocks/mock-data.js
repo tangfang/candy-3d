@@ -26,12 +26,18 @@ const dataMock = {
          * position — 机柜在机房中的位置
          */
         position: {
-            x: 0,
-            y: 0,
-            z: 0
+            x: 50,
+            y: 10,
+            z: 40
         },
-        servers: [{
-            
+        children: [{
+            name: 'server1',
+            type: 'server',
+            U: 50,
+        }, {
+            name: 'server2',
+            type: 'server',
+            U: 80,
         }]
     }
 }

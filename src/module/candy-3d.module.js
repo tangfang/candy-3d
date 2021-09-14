@@ -30,7 +30,7 @@ export default class Candy3D {
     this.createFloor(data.floor);//创建地板
     // candy.createWall();  //创建墙体
     this.createRack(data.rack);  //创建机柜
-    this.createServer(data.rack); //创建服务器
+    this.createChildren(data.rack); //创建服务器
 
     this.animation();//循环渲染界面
   }
@@ -55,7 +55,7 @@ export default class Candy3D {
 
     //事件 
     this.renderer.domElement.addEventListener('dblclick', (ev) => {
-      this._openDoor(ev);
+      this._dblclick(ev);
     }, false);
     // this.renderer.domElement.addEventListener('mousemove', (element, ev) => {
     //   console.log(element);
@@ -249,35 +249,35 @@ export default class Candy3D {
     // 机柜底
     const down_geo = new THREE.BoxGeometry(data.geometryParams.width, data.geometryParams.thick, data.geometryParams.depth);
     let rack_down = new THREE.Mesh(down_geo, texture_up_down);
-    rack_down.position.x = data.position.x;
+    rack_down.position.x = 0;
     rack_down.position.y = data.position.y + data.geometryParams.thick / 2;
     rack_down.position.z = data.position.z;
 
     // 机柜上板
     const up_geo = new THREE.BoxGeometry(data.geometryParams.width, data.geometryParams.thick, data.geometryParams.depth);
     let rack_up = new THREE.Mesh(up_geo, texture_up_down);
-    rack_up.position.x = data.position.x;
-    rack_up.position.y = data.geometryParams.height - data.geometryParams.thick / 2;
+    rack_up.position.x = 0;
+    rack_up.position.y = data.position.y + data.geometryParams.height - data.geometryParams.thick / 2;
     rack_up.position.z = data.position.z;
 
     // 机柜左板
     const left_geo = new THREE.BoxGeometry(data.geometryParams.thick, data.geometryParams.height, data.geometryParams.depth);
     let rack_left = new THREE.Mesh(left_geo, texture_left_right);
     rack_left.position.x = -data.geometryParams.width / 2 + data.geometryParams.thick / 2;
-    rack_left.position.y = data.geometryParams.height / 2;
+    rack_left.position.y = data.position.y + data.geometryParams.height / 2;
     rack_left.position.z = data.position.z;
 
     // 机柜右板
     const right_geo = new THREE.BoxGeometry(data.geometryParams.thick, data.geometryParams.height, data.geometryParams.depth);
     let rack_right = new THREE.Mesh(right_geo, texture_left_right);
     rack_right.position.x = data.geometryParams.width / 2 - data.geometryParams.thick / 2;
-    rack_right.position.y = data.geometryParams.height / 2;
+    rack_right.position.y = data.position.y + data.geometryParams.height / 2;
     rack_right.position.z = data.position.z;
 
     // 机柜后板
     const back_geo = new THREE.BoxGeometry(data.geometryParams.width, data.geometryParams.height, data.geometryParams.thick);
     let rack_back = new THREE.Mesh(back_geo, texture_left_right);
-    rack_back.position.x = data.position.x;
+    rack_back.position.x = 0;
     rack_back.position.y = data.position.y + data.geometryParams.height / 2;
     rack_back.position.z = data.position.z - data.geometryParams.depth / 2 + data.geometryParams.thick / 2;
 
@@ -287,7 +287,7 @@ export default class Candy3D {
     let menGroup = new THREE.Group();
     menGroup.position.x = data.position.x + data.geometryParams.width / 2;
     menGroup.position.y = data.position.y;
-    menGroup.position.z = data.position.z + data.geometryParams.depth / 2;
+    menGroup.position.z = data.position.z * 2 + data.geometryParams.depth / 2;
     menGroup.name = number;//机箱门的名字为输入的编号
 
     const menGeo = new THREE.BoxGeometry(data.geometryParams.width, data.geometryParams.height, data.geometryParams.thick);//机箱们宽，高，厚
@@ -295,19 +295,56 @@ export default class Candy3D {
       map: new THREE.TextureLoader().load('../img/rack_front.png')
     }));
     men.name = 'men';
-    // men.position.x = -data.geometryParams.width / 2;
-    // men.position.y = data.position.y + data.geometryParams.height / 2;
-    // men.position.z = data.position.z;
-    men.position.x = data.position.x - data.geometryParams.width / 2;
+    men.userData = { status: 'close' };
+    men.position.x = -data.geometryParams.width / 2;
     men.position.y = data.position.y + data.geometryParams.height / 2;
-    men.position.z = data.position.z + data.geometryParams.thick / 2;
+    men.position.z = 0;
 
     menGroup.add(men);
     this.scene.add(cabGroup, menGroup);
   }
 
-  //开门
-  _openDoor(ev) {
+  // 创建机柜children
+  createChildren(rack) {
+    rack.children.map((child) => {
+      let childGroup = new THREE.Group();
+      childGroup.position.set(rack.position.x, rack.position.y, rack.position.z);
+
+      //两层的服务器
+      const geometryParams = {
+        width: rack.geometryParams.width - rack.geometryParams.thick * 2 - 2,
+        U: rack.position.y + child.U,//位置还需要根据机柜的U位再设计;
+        depth: rack.geometryParams.depth - rack.geometryParams.thick * 2,
+        thick: 3.5
+      };
+      //这里服务器的尺寸要跟机箱尺寸对应好
+      const servTexture = new THREE.TextureLoader().load('img/rack_inside.jpg');
+      const serv2Geo = new THREE.BoxGeometry(geometryParams.width, geometryParams.thick, geometryParams.depth);
+      const servMat = new THREE.MeshBasicMaterial({
+        color: 0x9AC0CD,
+        map: servTexture
+      });
+      let server2 = new THREE.Mesh(serv2Geo, servMat);//服务器主体
+      server2.position.x = 0;
+      server2.position.y = geometryParams.U;
+      server2.position.z = rack.position.z + rack.geometryParams.thick;
+
+      //服务器面板尺寸
+      const server2mGeo = new THREE.BoxGeometry(geometryParams.width + 2.5, geometryParams.thick + 0.5, 0.2);
+      let server2face = new THREE.Mesh(server2mGeo, new THREE.MeshBasicMaterial({
+        map: new THREE.TextureLoader().load('img/server2.jpg')
+      }));
+      server2face.userData = child;
+      server2face.position.x = 0;
+      server2face.position.y = geometryParams.U;
+      server2face.position.z = rack.position.z + rack.geometryParams.depth / 2 + 0.2;
+      childGroup.add(server2, server2face);
+      this.scene.add(childGroup);
+    });
+  }
+
+  //dblclick事件
+  _dblclick(ev) {
     ev.preventDefault();
     // 先汲取屏幕上点击的位置创建一个向量
     let vector3 = new THREE.Vector3(
@@ -330,10 +367,12 @@ export default class Candy3D {
       const p1 = new THREE.Vector3(currObj.parent.position);
       const number = currObj.parent.name;
       // 如果门是关的，打开
-      if (currObj.parent.rotation.y === 0) {
+      // if (currObj.parent.rotation.y === 0) {
+      if (currObj.userData.status === 'close') {
         new TWEEN.Tween(currObj.parent.rotation).to({
           y: .6 * Math.PI
         }, 1500).easing(TWEEN.Easing.Elastic.Out).start();
+        currObj.userData.status = 'open';
         // this.controls.target = new THREE.Vector3(
         //   currObj.position.x,
         //   currObj.position.y + 50,
@@ -344,60 +383,31 @@ export default class Candy3D {
         //   currObj.parent.position.y + 150,
         //   currObj.parent.position.z + 300
         // )
+      } else {
+        new TWEEN.Tween(currObj.parent.rotation).to({
+          y: 0
+        }, 500).start();
+        currObj.userData.status = 'close';
       }
     }
-    if (currObj.name === 'server2') {
+    if (currObj.userData.type === 'server') {
       const p1 = new THREE.Vector3(currObj.parent.position);//
-      if (currObj.parent.position.z === 20) {
+      // if (currObj.parent.position.z === 20) {
+      if (currObj.userData.status === 'out') {
         new TWEEN.Tween(currObj.parent.position).to({
           z: currObj.parent.position.z - 20
         }, 500).easing(TWEEN.Easing.Elastic.Out).start();
         //                console.log(currObj.parent.position);
-
+        currObj.userData.status = 'in';
       } else {
         new TWEEN.Tween(currObj.parent.position).to({
           z: currObj.parent.position.z + 20
         }, 500).easing(TWEEN.Easing.Elastic.Out).start();
+        currObj.userData.status = 'out';
       }
 
       this.controls.update();
     }
-  }
-
-  // 创建服务器
-  createServer(rack) {
-    let serv2Group = new THREE.Group();
-    serv2Group.position.set(rack.position.x, rack.position.y, rack.position.z);
-
-    //两层的服务器
-    const geometryParams = {
-      width: rack.geometryParams.width - rack.geometryParams.thick*2 - 2,
-      height: 50,
-      depth: rack.geometryParams.depth - rack.geometryParams.thick * 2,
-      thick: 3.5
-    };
-    //这里服务器的尺寸要跟机箱尺寸对应好
-    const servTexture = new THREE.TextureLoader().load('img/rack_inside.jpg');
-    const serv2Geo = new THREE.BoxGeometry(geometryParams.width, geometryParams.thick, geometryParams.depth);
-    const servMat = new THREE.MeshBasicMaterial({
-      color: 0x9AC0CD,
-      map: servTexture
-    });
-    let server2 = new THREE.Mesh(serv2Geo, servMat);//服务器主体
-    server2.position.set(rack.position.x, geometryParams.height, rack.geometryParams.thick);
-
-    //服务器面板尺寸
-    const server2mGeo = new THREE.BoxGeometry(geometryParams.width+2.5, geometryParams.thick+0.5, 0.2);
-    let server2face = new THREE.Mesh(server2mGeo, new THREE.MeshBasicMaterial({
-      map: new THREE.TextureLoader().load('img/server2.jpg')
-    }));
-    server2face.name = 'server2';
-    server2face.position.x = rack.position.x;
-    server2face.position.y = geometryParams.height;
-    // server2face.position.z = 36 / 2 + 0.2 / 2 + 2;
-    server2face.position.z = rack.geometryParams.depth/2 +0.2;
-    serv2Group.add(server2, server2face);
-    this.scene.add(serv2Group);
   }
 
   /**
