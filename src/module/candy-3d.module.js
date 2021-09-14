@@ -29,8 +29,10 @@ export default class Candy3D {
 
     this.createFloor(data.floor);//创建地板
     // candy.createWall();  //创建墙体
-    this.createRack(data.rack);  //创建机柜
-    this.createChildren(data.rack); //创建服务器
+    data.rack.map((rack) => {
+      this.createRack(rack);  //创建机柜
+      this.createChildren(rack); //创建服务器
+    });
 
     this.animation();//循环渲染界面
   }

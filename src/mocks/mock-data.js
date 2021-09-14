@@ -4,7 +4,7 @@ const dataMock = {
         height: 0,
         depth: 300
     },
-    rack: {
+    rack: [{
         id: 'A1001',
         /**
          * geometryParams — 机柜geo属性
@@ -26,9 +26,9 @@ const dataMock = {
          * position — 机柜在机房中的位置
          */
         position: {
-            x: 50,
-            y: 10,
-            z: 40
+            x: 0,
+            y: 0,
+            z: 0
         },
         children: [{
             name: 'server1',
@@ -39,6 +39,28 @@ const dataMock = {
             type: 'server',
             U: 80,
         }]
-    }
+    },{
+        id: 'A1002',
+        geometryParams: {
+            width: 30,
+            height: 88,
+            depth: 40,
+            thick: 2
+        },
+        position: {
+            x: 30,
+            y: 0,
+            z: 0
+        },
+        children: [{
+            name: 'server3',
+            type: 'server',
+            U: 50,
+        }, {
+            name: 'server4',
+            type: 'server',
+            U: 80,
+        }]
+    }]
 }
 export default dataMock;
