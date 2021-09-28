@@ -61,6 +61,32 @@ const dataMock = {
             type: 'server',
             U: 80,
         }]
+    },{
+        id: 'A1003',
+        geometryParams: {
+            width: 30,
+            height: 88,
+            depth: 40,
+            thick: 2
+        },
+        position: {
+            x: 60,
+            y: 0,
+            z: 0
+        },
+        children: [{
+            name: 'server5',
+            type: 'server',
+            U: 50,
+        }, {
+            name: 'server6',
+            type: 'server',
+            U: 80,
+        }, {
+            name: 'server7',
+            type: 'server',
+            U: 2+0,
+        }]
     }]
 }
 export default dataMock;

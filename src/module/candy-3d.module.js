@@ -1,5 +1,6 @@
 'use strict';
 import * as THREE from 'three';
+const ThreeBSP = require('jthreebsp')(THREE);
 import TWEEN from '@tweenjs/tween.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
@@ -28,7 +29,7 @@ export default class Candy3D {
     this.initMouseCtrl();//创建鼠标控制器 
 
     this.createFloor(data.floor);//创建地板
-    // candy.createWall();  //创建墙体
+    this.createWall();  //创建墙体
     data.rack.map((rack) => {
       this.createRack(rack);  //创建机柜
       this.createChildren(rack); //创建服务器
@@ -146,83 +147,89 @@ export default class Candy3D {
       { width: 400, height: 200, depth: 1, color: 0XECF1F3, x: 0, y: 100, z: 150, angle: 1 },//front
       { width: 400, height: 200, depth: 1, color: 0XECF1F3, x: 0, y: 100, z: -150, angle: 1 } //back
     ];
+    const tempMaterial = new THREE.MeshBasicMaterial();
+
+    const _glassGeometry = new THREE.BoxGeometry(50, 80, 1);
+    const _glassMesh = new THREE.Mesh(_glassGeometry, tempMaterial);
+
+    const newmaterial = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('../img/wall.png') });
     _walls.map((_wall) => {
-      const material = new THREE.MeshBasicMaterial({
-        color: _wall.color,
-        opacity: 0.4,
-        transparent: true
-      });
       const cubeGeometry = new THREE.BoxGeometry(_wall.width, _wall.height, _wall.depth);
-      const cube = new THREE.Mesh(cubeGeometry, material);
-      cube.position.x = _wall.x;
-      cube.position.y = _wall.y;
-      cube.position.z = _wall.z;
-      cube.rotation.y += _wall.angle * Math.PI; //-逆时针旋转,+顺时针
-      this.scene.add(cube);
+      const cube = new THREE.Mesh(cubeGeometry, tempMaterial);
+
+      const cubeBSP = new ThreeBSP(cube);
+      const glassBSP = new ThreeBSP(_glassMesh);
+      const resultBSP = cubeBSP.subtract(glassBSP);
+      const result = resultBSP.toMesh();
+      result.material = newmaterial;
+      result.position.x = _wall.x;
+      result.position.y = _wall.y;
+      result.position.z = _wall.z;
+      result.rotation.y += _wall.angle * Math.PI; //-逆时针旋转,+顺时针
+      this.scene.add(result);
     });
   }
 
   //创建机柜
   _createRack1() {
     const width = 30, height = 88, depth = 40, x = 50, y = 50, z = 0;
-    //创建11个机柜
-    for (let i = 0; i <= 0; i++) {
-      let cabGroup = new THREE.Group();
-      cabGroup.position.set(x, y, z)
-      cabGroup.name = 'cabGroup';
-      // 机柜左侧
-      let left_Geometry = new THREE.BoxGeometry(2, height, depth);
-      const posx_material = new THREE.MeshBasicMaterial({
-        map: new THREE.TextureLoader().load('../img/rack_left.png')
-      });
-      const left_obj = new THREE.Mesh(left_Geometry, posx_material);
-      left_obj.position.x = width / 2 - 1;
-      left_obj.position.y = height / 2;
-      left_obj.position.z = z;
-      // this.scene.add(left_obj);
-      // 机柜右侧
-      let right_Geometry = new THREE.BoxGeometry(2, height, depth);
-      const negx_material = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('../img/rack_left.png') });
-      const right_obj = new THREE.Mesh(right_Geometry, negx_material);
-      right_obj.position.x = -width / 2 + 1;
-      right_obj.position.y = height / 2;
-      right_obj.position.z = z;
-      // this.scene.add(right_obj);
-      // 机柜上侧
-      let up_Geometry = new THREE.BoxGeometry(width, 2, depth);
-      const posy_material = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('../img/rack_up.png') });
-      const up_obj = new THREE.Mesh(up_Geometry, posy_material);
-      up_obj.position.x = 0;
-      up_obj.position.y = height;
-      up_obj.position.z = z;
-      // this.scene.add(up_obj);
-      // 机柜底部 const negy_material = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('../img/rack_up.png') });
-      // 机柜背面
-      let back_Geometry = new THREE.BoxGeometry(width, height, 0);
-      const negz_material = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('../img/rack_back.png') });
-      const back_obj = new THREE.Mesh(back_Geometry, negz_material);
-      back_obj.position.x = 0;
-      back_obj.position.y = height / 2;
-      back_obj.position.z = z - depth / 2;
-      // this.scene.add(back_obj);
-      cabGroup.add(left_obj, right_obj, up_obj, back_obj);
 
-      let menGroup = new THREE.Group();
-      menGroup.position.set(x + 15, y, z + 20);
-      menGroup.name = 'menGroup';
-      // 机柜门
-      let front_Geometry = new THREE.BoxGeometry(width, height, 0);
-      const posz_material = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('../img/rack_front.png') });
-      const front_obj = new THREE.Mesh(front_Geometry, posz_material);
-      front_obj.name = 'men';
-      // front_obj.position.x = x + width/2 * (i+1);
-      front_obj.position.x = 0;
-      front_obj.position.y = height / 2;
-      front_obj.position.z = z + depth / 2;
-      // this.scene.add(front_obj);
-      menGroup.add(front_obj);
-      this.scene.add(cabGroup, menGroup);
-    }
+    let cabGroup = new THREE.Group();
+    cabGroup.position.set(x, y, z);
+    cabGroup.receiveShadow = true; //材质是否接收阴影.没什么鸟用
+    cabGroup.name = 'cabGroup';
+    // 机柜左侧
+    let left_Geometry = new THREE.BoxGeometry(2, height, depth);
+    const posx_material = new THREE.MeshBasicMaterial({
+      map: new THREE.TextureLoader().load('../img/rack_left.png')
+    });
+    const left_obj = new THREE.Mesh(left_Geometry, posx_material);
+    left_obj.position.x = width / 2 - 1;
+    left_obj.position.y = height / 2;
+    left_obj.position.z = z;
+    // this.scene.add(left_obj);
+    // 机柜右侧
+    let right_Geometry = new THREE.BoxGeometry(2, height, depth);
+    const negx_material = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('../img/rack_left.png') });
+    const right_obj = new THREE.Mesh(right_Geometry, negx_material);
+    right_obj.position.x = -width / 2 + 1;
+    right_obj.position.y = height / 2;
+    right_obj.position.z = z;
+    // this.scene.add(right_obj);
+    // 机柜上侧
+    let up_Geometry = new THREE.BoxGeometry(width, 2, depth);
+    const posy_material = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('../img/rack_up.png') });
+    const up_obj = new THREE.Mesh(up_Geometry, posy_material);
+    up_obj.position.x = 0;
+    up_obj.position.y = height;
+    up_obj.position.z = z;
+    // this.scene.add(up_obj);
+    // 机柜底部 const negy_material = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('../img/rack_up.png') });
+    // 机柜背面
+    let back_Geometry = new THREE.BoxGeometry(width, height, 0);
+    const negz_material = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('../img/rack_back.png') });
+    const back_obj = new THREE.Mesh(back_Geometry, negz_material);
+    back_obj.position.x = 0;
+    back_obj.position.y = height / 2;
+    back_obj.position.z = z - depth / 2;
+    // this.scene.add(back_obj);
+    cabGroup.add(left_obj, right_obj, up_obj, back_obj);
+
+    let menGroup = new THREE.Group();
+    menGroup.position.set(x + 15, y, z + 20);
+    menGroup.name = 'menGroup';
+    // 机柜门
+    let front_Geometry = new THREE.BoxGeometry(width, height, 0);
+    const posz_material = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('../img/rack_front.png') });
+    const front_obj = new THREE.Mesh(front_Geometry, posz_material);
+    front_obj.name = 'men';
+    // front_obj.position.x = x + width/2 * (i+1);
+    front_obj.position.x = 0;
+    front_obj.position.y = height / 2;
+    front_obj.position.z = z + depth / 2;
+    // this.scene.add(front_obj);
+    menGroup.add(front_obj);
+    this.scene.add(cabGroup, menGroup);
   }
 
   //创建机柜
